@@ -20,8 +20,7 @@ import core
 import globalCommands
 import inputCore
 import scriptHandler
-import winUser
-from appModules import HWUtils
+from appModules import humanware
 from baseObject import ScriptableObject
 from globalCommands import SCRCAT_BRAILLE
 from logHandler import log
@@ -52,6 +51,20 @@ except ImportError:
 DOT_7_MASK = 0b01000000  # 64
 DOT_8_MASK = 0b10000000  # 128
 DOT_7_OR_8_MASK = DOT_7_MASK | DOT_8_MASK  # 192 (dots 7 or 8)
+
+# Gestures that REQUIRE the space key to be physically pressed
+# These will NOT be emulated if space is not pressed (to avoid conflicts)
+# When space is not pressed, the dots will be handled normally by NVDA
+SPACE_REQUIRED_GESTURES = {
+	"br(hidBrailleStandard):space+dot1+dot2+dot7",  # Space+Backspace+B -> Previous web page.
+	"br(hidBrailleStandard):space+dot1+dot2+dot4+dot7", # Space+Backspace+F -> Next web page.
+	"br(hidBrailleStandard):space+dot1+dot2+dot4+dot5+dot7",  # Space+Backspace+G -> Toggle braille grade.
+	"br(hidBrailleStandard):space+dot1+dot3+dot7",  # Space+Backspace+K -> Turns input help on or off.
+	"br(hidBrailleStandard):space+dot1+dot2+dot3+dot7",  # Space+Backspace+L -> Toggle single letter navigation
+	"br(hidBrailleStandard):space+dot1+dot3+dot4+dot5+dot7", # Space+Backspace+N -> Open a new window
+	"br(hidBrailleStandard):space+dot1+dot2+dot3+dot4+dot5+dot7",  # Space+Backspace+Q -> Opens Quick settings
+	# Add other gestures here that must have space pressed
+}
 
 
 class EmulatedGesture(inputCore.InputGesture):
@@ -86,7 +99,7 @@ class HumanwareCommands(ScriptableObject):
 			buffer = braille.handler.buffer
 			messageBuffer = braille.handler.messageBuffer
 			if buffer is not messageBuffer:
-				HWUtils.emulateKeyPress("enter")
+				humanware.emulateKeyPress("enter")
 				# Our ListView Items are not compatible with UIAInvokePattern types. Our ListViewItems should support UIAutomation.
 				# focusObj.doAction()
 				return
@@ -96,7 +109,7 @@ class HumanwareCommands(ScriptableObject):
 				buffer = braille.handler.buffer
 				messageBuffer = braille.handler.messageBuffer
 				if buffer is not messageBuffer:
-					HWUtils.emulateKeyPress("enter")
+					humanware.emulateKeyPress("enter")
 					return
 
 		globalCommands.commands.script_braille_routeTo(gesture)
@@ -112,13 +125,11 @@ class HumanwareCommands(ScriptableObject):
 			return
 
 		# Use helper methods from commands instance if not available on self
-		_isInBrowseMode = getattr(self, '_isInBrowseMode', None) or commands._isInBrowseMode
 		_handleSpaceChordGesture = getattr(self, '_handleSpaceChordGesture', None) or commands._handleSpaceChordGesture
 
-		if not _isInBrowseMode():
-			# Try to handle as a space chord gesture
-			if _handleSpaceChordGesture(gesture):
-				return
+		# Try to handle as a space chord gesture
+		if _handleSpaceChordGesture(gesture):
+			return
 
 		globalCommands.GlobalCommands.script_braille_dots(self, gesture)
 
@@ -194,7 +205,7 @@ class HumanwareCommands(ScriptableObject):
 				brailleInput.handler.setBRLUCXEnabled(False)
 			# Re-evaluate BRLUCX after the config has been updated by the gesture.
 			core.callLater(100, focus.appModule.event_gainFocus, focus, lambda: None)
-		HWUtils.emulateGestureWithVK('G', [(winUser.VK_CONTROL, False), (winUser.VK_MENU, False)])
+		humanware.emulateGesture("control+alt+g")
 
 	@script(
 		# Translators: Input help message for Cut command.
@@ -202,7 +213,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4+dot6+dot7"),	# Backspace+X
 	)
 	def script_cut(self, gesture):
-		self.emulateKeyPressFromCommandName("cut")	# Ctrl+X
+		self.emulateKeyPressFromCommandName("cut") # Ctrl+X
 
 	@script(
 		# Translators: Input help message for Copy command.
@@ -210,7 +221,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4+dot5+dot6+dot7"),	# Backspace+Y
 	)
 	def script_copy(self, gesture):
-		self.emulateKeyPressFromCommandName("copy")	# Ctrl+C
+		self.emulateKeyPressFromCommandName("copy") # Ctrl+C
 
 	@script(
 		# Translators: Input help message for Paste command.
@@ -218,7 +229,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot6+dot7"),	# Backspace+V
 	)
 	def script_paste(self, gesture):
-		self.emulateKeyPressFromCommandName("paste")	# Ctrl+V
+		self.emulateKeyPressFromCommandName("paste") # Ctrl+V
 
 	@script(
 		# Translators: Input help message for Undo command.
@@ -258,7 +269,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot5+dot6+dot7"),	# Backspace+D2356
 	)
 	def script_delete(self, gesture):
-		HWUtils.emulateGesture("delete")
+		humanware.emulateGesture("delete")
 
 	@script(
 		# Translators: Input help message for Select All command.
@@ -290,7 +301,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4"),	# Space+M
 	)
 	def script_openContextMenu(self, gesture):
-		HWUtils.emulateGesture("shift+f10")
+		humanware.emulateGesture("shift+f10")
 
 	@script(
 		# Translators: Input help message for Open context menu command.
@@ -306,7 +317,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot7"),	# Backspace+A
 	)
 	def script_altKey(self, gesture):
-		HWUtils.emulateGesture("alt")
+		humanware.emulateGesture("alt")
 
 	@script(
 		gesture=("kb:tab"),
@@ -317,7 +328,7 @@ class HumanwareCommands(ScriptableObject):
 				log.debug(f"Executing delayed translate")
 				brailleInput.handler.translate()
 				log.debug(f"Translate done, sending Tab")
-				HWUtils.emulateTabKeyPress(withShift=False)
+				humanware.emulateTabKeyPress(withShift=False)
 
 			# Delay 50ms to let Tab key be released before SendInput() is called
 			wx.CallLater(50, delayed_translate_and_tab)
@@ -325,7 +336,7 @@ class HumanwareCommands(ScriptableObject):
 
 		# No braille in buffer, use keybd_event for better wx dialog compatibility
 		# This works even when shift is no longer physically pressed (Perkins firmware)
-		HWUtils.emulateTabKeyPress(withShift=False)
+		humanware.emulateTabKeyPress(withShift=False)
 
 	@script(
 		gesture=("kb:shift+tab"),
@@ -336,7 +347,7 @@ class HumanwareCommands(ScriptableObject):
 				log.debug(f"Executing delayed translate")
 				brailleInput.handler.translate()
 				log.debug(f"Translate done, sending Shift+Tab")
-				HWUtils.emulateTabKeyPress(withShift=True)
+				humanware.emulateTabKeyPress(withShift=True)
 
 			# Delay 50ms to let Tab key be released before SendInput() is called
 			wx.CallLater(50, delayed_translate_and_shift_tab)
@@ -344,7 +355,7 @@ class HumanwareCommands(ScriptableObject):
 
 		# No braille in buffer, use keybd_event for better wx dialog compatibility
 		# This works even when shift is no longer physically pressed (Perkins firmware)
-		HWUtils.emulateTabKeyPress(withShift=True)
+		humanware.emulateTabKeyPress(withShift=True)
 
 	@script(
 		# Translators: Input help message for Open Options menu command.
@@ -352,8 +363,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot5"),	# Space+O
 	)
 	def script_openOptionsMenu(self, gesture):
-		# Use VK code (VK_O = 'O') for keyboard layout independence
-		HWUtils.emulateGestureWithVK('O', [(winUser.VK_CONTROL, False), (winUser.VK_MENU, False)])
+		humanware.emulateGesture("control+alt+o")
 
 	@script(
 		# Translators: Input help message for Open Options menu command.
@@ -369,7 +379,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot6"),	# Space+D16
 	)
 	def script_spellCheck(self, gesture):
-		HWUtils.emulateGesture("f7")
+		humanware.emulateGesture("f7")
 
 	@script(
 		# Translators: Input help message for Pass Next Key Through command.
@@ -407,7 +417,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4+dot6+dot7+dot8"),	# Backspace+Enter+X
 	)
 	def script_playPause(self, gesture):
-		HWUtils.emulateGesture("mediaplaypause")
+		humanware.emulateGesture("mediaplaypause")
 
 	@script(
 		# Translators: Input help message for Next Track command.
@@ -415,7 +425,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot4+dot6+dot7+dot8"),	# Backspace+Enter+D46
 	)
 	def script_nextTrack(self, gesture):
-		HWUtils.emulateGesture("medianexttrack")
+		humanware.emulateGesture("medianexttrack")
 
 	@script(
 		# Translators: Input help message for Previous Track command.
@@ -423,7 +433,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot7+dot8"),	# Backspace+Enter+D13
 	)
 	def script_previousTrack(self, gesture):
-		HWUtils.emulateGesture("mediaprevtrack")
+		humanware.emulateGesture("mediaprevtrack")
 
 	@script(
 		# Translators: Input help message for Refresh command.
@@ -431,7 +441,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot5+dot8"),	# Enter+R
 	)
 	def script_refresh(self, gesture):
-		HWUtils.emulateGesture("f5")
+		humanware.emulateGesture("f5")
 
 	@script(
 		# Translators: Input help message for Home key command.
@@ -439,7 +449,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot8"),	# Enter+D13
 	)
 	def script_homeKey(self, gesture):
-		HWUtils.emulateGesture("home")
+		humanware.emulateGesture("home")
 
 	@script(
 		# Translators: Input help message for End key command.
@@ -447,7 +457,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot4+dot6+dot8"),	# Enter+D46
 	)
 	def script_endKey(self, gesture):
-		HWUtils.emulateGesture("end")
+		humanware.emulateGesture("end")
 
 	@script(
 		# Translators: Input help message for Control + Home key command.
@@ -455,7 +465,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3"),	# Space+D123
 	)
 	def script_controlHomeKey(self, gesture):
-		HWUtils.emulateGesture("control+home")
+		humanware.emulateGesture("control+home")
 
 	@script(
 		# Translators: Input help message for Control + End key command.
@@ -463,7 +473,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot4+dot5+dot6"),	# Space+D456
 	)
 	def script_controlEndKey(self, gesture):
-		HWUtils.emulateGesture("control+end")
+		humanware.emulateGesture("control+end")
 
 	@script(
 		# Translators: Input help message for Page Down key command.
@@ -471,7 +481,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot3+dot4+dot5+dot8"),	# Enter+D345
 	)
 	def script_pageDownKey(self, gesture):
-		HWUtils.emulateGesture("pagedown")
+		humanware.emulateGesture("pagedown")
 
 	@script(
 		# Translators: Input help message for Page Up key command.
@@ -479,7 +489,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot6+dot8"),	# Enter+D126
 	)
 	def script_pageUpKey(self, gesture):
-		HWUtils.emulateGesture("pageup")
+		humanware.emulateGesture("pageup")
 
 	@script(
 		# Translators: Input help message for Next Word command.
@@ -487,7 +497,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot5"),
 	)
 	def script_braille_nextWord(self, gesture):
-		HWUtils.emulateGesture("control+rightArrow")
+		humanware.emulateGesture("control+rightArrow")
 
 	@script(
 		# Translators: Input help message for Previous Word command.
@@ -495,7 +505,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot2"),
 	)
 	def script_braille_previousWord(self, gesture):
-		HWUtils.emulateGesture("control+leftArrow")
+		humanware.emulateGesture("control+leftArrow")
 
 	@script(
 		# Translators: Input help message for Help key command.
@@ -503,7 +513,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot5"),	# Space+H
 	)
 	def script_helpKey(self, gesture):
-		HWUtils.emulateGesture("f1")
+		humanware.emulateGesture("f1")
 
 	@script(
 		# Translators: Input help message for Cycle through screen elements command.
@@ -511,7 +521,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot5+dot7+dot8"),	# Backspace + Enter + lower F
 	)
 	def script_cycleScreenElements(self, gesture):
-		HWUtils.emulateGesture("f6")
+		humanware.emulateGesture("f6")
 
 	@script(
 		# Translators: Input help message for Next document command.
@@ -519,7 +529,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot5+dot6"),	# Space+D1256
 	)
 	def script_NextDocument(self, gesture):
-		HWUtils.emulateGesture("control+f6")
+		humanware.emulateGesture("control+f6")
 
 	@script(
 		# Translators: Input help message for Previous document command.
@@ -527,7 +537,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot5+dot6+dot7"),	#  Backspace+D1256
 	)
 	def script_previousDocument(self, gesture):
-		HWUtils.emulateGesture("control+shift+f6")
+		humanware.emulateGesture("control+shift+f6")
 
 	@script(
 		# Translators: Input help message for Close document command.
@@ -535,7 +545,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot2+dot4+dot5+dot6"),	#  Space+W
 	)
 	def script_closeDocument(self, gesture):
-		HWUtils.emulateGestureWithVK('W', [(winUser.VK_CONTROL, False)])
+		humanware.emulateGesture("control+w")
 
 	@script(
 		# Translators: Input help message for Apps switcher command.
@@ -543,7 +553,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot5"),	# Space+D235
 	)
 	def script_appsSwitcherShortcut(self, gesture):
-		HWUtils.emulateGesture("control+f12")
+		humanware.emulateGesture("control+f12")
 
 	@script(
 		# Translators: Input help message for Apps switcher command.
@@ -559,7 +569,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4+dot5+dot8"),	# Enter+N
 	)
 	def script_notificationsCenterShortcut(self, gesture):
-		HWUtils.emulateGestureWithVK('N', [(winUser.VK_LWIN, False)])
+		humanware.emulateGesture("windows+n")
 
 	@script(
 		# Translators: Input help message for Windows Settings command.
@@ -567,13 +577,13 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot4+dot5+dot8"),	# Enter+Q
 	)
 	def script_windowsSettingsShortcut(self, gesture):
-		HWUtils.emulateGestureWithVK('I', [(winUser.VK_LWIN, False)])
+		humanware.emulateGesture("windows+i")
 
 	@script(
 		gesture=("br(hidBrailleStandard):space+dot2+dot4+dot7+dot8"),	# Backspace+Enter+I
 	)
 	def script_toggleKeyboardLayoutShortcut(self, gesture):
-		HWUtils.emulateGesture("leftwindows+space")
+		humanware.emulateGesture("leftwindows+space")
 
 	@script(
 		# Translators: Input help message for Quick Settings shortcut command.
@@ -581,7 +591,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot4+dot5+dot7"),	# Backspace+Q
 	)
 	def script_quickSettingsShortcut(self, gesture):
-		HWUtils.emulateGestureWithVK('A', [(winUser.VK_LWIN, False)])
+		humanware.emulateGesture("windows+a")
 
 	@script(
 		# Translators: Input Help message for the browse mode elements list command.
@@ -590,7 +600,7 @@ class HumanwareCommands(ScriptableObject):
 	)
 	def script_elementsList(self, gesture):
 		if self._isInBrowseMode():
-			HWUtils.emulateGesture("nvda+f7")
+			humanware.emulateGesture("nvda+f7")
 
 	@script(
 		# Translators: Input help message for Time and Date command.
@@ -638,15 +648,16 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot4+dot5+dot6") # Enter+D123456
 	)
 	def script_openMainMenu(self, gesture):
-		HWUtils.emulateGestureWithVK('H', [(winUser.VK_CONTROL, False), (winUser.VK_MENU, False)])
+		humanware.emulateGesture("control+alt+h")
 
-	@script(
-		# Translators: Input help message for Open Main Menu command.
-		description=_("Open Main Menu"),
-		gesture=("kb:control+alt+h")
-	)
-	def script_openMainMenuQwerty(self, gesture):
-		gesture.send()
+	# @script(
+	# 	# Translators: Input help message for Open Main Menu command.
+	# 	description=_("Open Main Menu"),
+	# 	gesture=("kb:control+alt+h")
+	# )
+	# def script_openMainMenuQwerty(self, gesture):
+	# 	gesture.send() #doing gesture.send exposes us to occasional lost modifiers BNW-3746
+
 
 	@script(
 		description=_(
@@ -668,7 +679,7 @@ class HumanwareCommands(ScriptableObject):
 			"allowing you to interact directly with a control. "
 			"When in browse mode, you can navigate the document with the cursor, quick navigation keys, etc.",
 		),
-		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot5+dot6+dot8"),	# Enter+D2356 -> execute the global command
+		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot5+dot6+dot8"),	# Enter+D2356  (Enter + lower g) -> execute the global command
 	)
 	def script_braille_toggleBrowseFocusModes(self, gesture):
 		emulatedGesture = EmulatedGesture("kb:NVDA+space", gesture)
@@ -691,7 +702,7 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot2+dot3"),	# Space+D23
 	)
 	def script_generateControlUpArrow(self, gesture):
-		HWUtils.emulateGesture("control+upArrow")
+		humanware.emulateGesture("control+upArrow")
 
 	@script(
 		# Translators: Input help message for generate control + down arrow command.
@@ -699,7 +710,20 @@ class HumanwareCommands(ScriptableObject):
 		gesture=("br(hidBrailleStandard):space+dot5+dot6"),	# Space+D56
 	)
 	def script_generateControlDownArrow(self, gesture):
-		HWUtils.emulateGesture("control+downArrow")
+		humanware.emulateGesture("control+downArrow")
+
+	@script(
+		# Translators: Input help message for Toggle input help mode command.
+		description=_(
+			"Turns input help on or off. "
+			"When on, any input such as pressing a key on the keyboard "
+			"will tell you what script is associated with that input, if any.",
+		),
+		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot7"),	# Space+Backspace+K
+	)
+	def script_toggleInputHelp(self, gesture):
+		emulatedGesture = EmulatedGesture("kb:NVDA+1", gesture)
+		globalCommands.GlobalCommands.script_toggleInputHelp(self, emulatedGesture)
 
 	def _handleSpaceChordGesture(self, gesture) -> bool:
 		"""Handle space chord gestures (dot 7 or 8 pressed with other dots).
@@ -727,6 +751,13 @@ class HumanwareCommands(ScriptableObject):
 			# Build the gesture identifier with space
 			dotsStr = "+".join([f"dot{d}" for d in dots_pressed])
 			targetGestureId = f"br(hidBrailleStandard):space+{dotsStr}"
+
+			# Check if this gesture REQUIRES the space key to be physically pressed
+			if targetGestureId in SPACE_REQUIRED_GESTURES and self._isInBrowseMode():
+				# Return False to let the dots be handled normally by NVDA
+				# This allows browse mode navigation to work correctly (e.g., backspace+K → shift+K)
+				log.debug(f"Gesture {targetGestureId} requires space key, skipping emulation")
+				return False
 
 			# Special handling for sayTime gesture: detect script repetition manually
 			if targetGestureId == "br(hidBrailleStandard):space+dot2+dot3+dot4+dot5+dot8":
@@ -788,7 +819,7 @@ class HumanwareCommands(ScriptableObject):
 			This method specifically targets GlobalCommands module, which contains
 			the standard NVDA global commands and their keyboard shortcuts.
 		"""
-		HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "HumanwareCommands")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "HumanwareCommands")
 
 
 

@@ -6,7 +6,7 @@
 # KeyMath App Module for NVDA
 
 import appModuleHandler
-import appModules.HWUtils
+from appModules import humanware
 from scriptHandler import script
 
 class AppModule(appModuleHandler.AppModule):
@@ -16,7 +16,12 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4+dot5"), # Space+N
 	)
 	def script_braille_newExpression(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "newExpression")
+		# In the HumanWare custom "Save As" dialog, Space+N must create a new folder,
+		# instead of creating a new expression
+		if humanware.isInHumanWareSaveAsDialog():
+			humanware.emulateKeyPress("control+n")
+		else:
+			humanware.emulateKeyPressFromCommandName(self, "newExpression")
 
 	@script(
 		# Translators: Input Help message for the modify expression command.
@@ -24,7 +29,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot8"), # Enter
 	)
 	def script_braille_modifyExpression(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "modifyExpression")
+		humanware.emulateKeyPressFromCommandName(self, "modifyExpression")
 
 	@script(
 		# Translators: Input Help message for the delete all expression command.
@@ -32,7 +37,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot3+dot5+dot6+dot7"), # Backspace+D356
 	)
 	def script_braille_deleteAllExpressions(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "deleteAllExpressions")
+		humanware.emulateKeyPressFromCommandName(self, "deleteAllExpressions")
 
 	@script(
 		# Translators: Input Help message for the insert braille symbol command.
@@ -40,7 +45,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot3+dot5+dot7"), # Backspace+D35
 	)
 	def script_braille_insertSymbol(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "insertSymbol")
+		humanware.emulateKeyPressFromCommandName(self, "insertSymbol")
 
 
 	@script(
@@ -49,7 +54,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot5+dot7"), # Backspace+O
 	)
 	def script_braille_insertBRL(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "insertBRL")
+		humanware.emulateKeyPressFromCommandName(self, "insertBRL")
 
 	@script(
 		# Translators: Input Help message for the export to BRL file command.
@@ -57,7 +62,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot4+dot7"), # Backspace+S
 	)
 	def script_braille_exportBRL(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "exportBRL")
+		humanware.emulateKeyPressFromCommandName(self, "exportBRL")
 
 	@script(
 		# Translators: Input Help message for the announce expression command.
@@ -65,7 +70,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot4"), # Space+C
 	)
 	def script_braille_announceExpression(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "announceExpression")
+		humanware.emulateKeyPressFromCommandName(self, "announceExpression")
 
 	@script(
 		# Translators: Input Help message for the display expression error command.
@@ -73,7 +78,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot2+dot4"), # Space+I
 	)
 	def script_braille_displayExpressionError(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "displayExpressionError")
+		humanware.emulateKeyPressFromCommandName(self, "displayExpressionError")
 
 	@script(
 		# Translators: Input Help message for the enable or disable expression command.
@@ -81,14 +86,14 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot7"), # Backspace+L
 	)
 	def script_braille_enableDisableExpression(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "enableDisableExpression")
+		humanware.emulateKeyPressFromCommandName(self, "enableDisableExpression")
 
 	@script(
 		description=_("Refresh"),
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot5"), # Space+R
 	)
 	def script_braille_refresh(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "refresh")
+		humanware.emulateKeyPressFromCommandName(self, "refresh")
 
 	@script(
 		# Translators: Input Help message for the export content command.
@@ -96,7 +101,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot5+dot7"), # Backspace+E
 	)
 	def script_braille_exportContent(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "exportContent")
+		humanware.emulateKeyPressFromCommandName(self, "exportContent")
 
 	@script(
 		# Translators: Input Help message for the export embossing command.
@@ -104,7 +109,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot5+dot8"), # Enter+E
 	)
 	def script_braille_exportEmbossing(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "exportEmbossing")
+		humanware.emulateKeyPressFromCommandName(self, "exportEmbossing")
 
 	@script(
 		# Translators: Input Help message for the graph viewer command.
@@ -112,7 +117,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot4+dot5+dot8"), # Enter+G
 	)
 	def script_braille_graphViewer(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "graphViewer")
+		humanware.emulateKeyPressFromCommandName(self, "graphViewer")
 
 	@script(
 		# Translators: Input Help message for the graph settings command.
@@ -120,4 +125,4 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot3+dot5"), # Space+D35
 	)
 	def script_braille_graphSettings(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "graphSettings")
+		humanware.emulateKeyPressFromCommandName(self, "graphSettings")

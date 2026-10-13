@@ -1,3 +1,6 @@
+# This file was modified for the BrailleNote evolve
+# Technologies Humanware 2026
+
 # A part of NonVisual Desktop Access (NVDA)
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
@@ -1261,6 +1264,9 @@ def _getSelectionMessageSpeech(
 	message: str,
 	text: str,
 ) -> SpeechSequence:
+	# Suppress the announcement if the text consists entirely of Unicode braille pattern characters (U+2800–U+28FF)
+	if text and not any((ch < "\u2800" or ch > "\u28FF") and not ch.isspace() for ch in text):
+		return []
 	if len(text) < MAX_LENGTH_FOR_SELECTION_REPORTING:
 		return _getSpeakMessageSpeech(message % text)
 	textLength = len(text)

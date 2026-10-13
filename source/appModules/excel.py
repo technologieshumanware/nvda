@@ -23,8 +23,9 @@ from NVDAObjects.window import DisplayModelEditableText
 from NVDAObjects.window.edit import UnidentifiedEdit
 from NVDAObjects.window import Window
 from NVDAObjects.IAccessible import IAccessible
-import appModules.HWUtils
+from appModules import humanware
 from scriptHandler import script
+from logHandler import log
 
 
 class Excel6(Window):
@@ -181,9 +182,9 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_info(self, gesture):
 		time.sleep(0.5)
-		appModules.HWUtils.emulateGesture("alt")
-		self.emulateKeyPressFromCommandName("fileKey") # this is not named after a keyboard key because depending on language it can be different
-		self.emulateKeyPressFromCommandName("backstageInfoKey") # this is not named after a keyboard key because depending on language it can be different
+		# Use the locale-specific key sequence from gesturesFromCommandName.ini
+		# English: "alt,f,i" / German: "alt,d,i"
+		humanware.emulateKeySequenceFromCommandName(self, "openFileInfoKeys")
 
 	@script(
 		description=_("Open menu list"),
@@ -191,9 +192,15 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_openMenuList(self, gesture):
 		time.sleep(0.5)
-		appModules.HWUtils.emulateGesture("alt")
-		appModules.HWUtils.emulateGesture("m")
-		appModules.HWUtils.emulateGesture("l")
+		focus = api.getFocusObject()
+		# Add extra delay after Alt if focus is in a content area (cell, editable text, document)
+		# so the ribbon can activate before the subsequent menu keystrokes are sent.
+		delayAfterAlt = 0.5 if focus and focus.role in (
+			controlTypes.Role.TABLECELL,
+			controlTypes.Role.EDITABLETEXT,
+			controlTypes.Role.DOCUMENT,
+		) else 0.0
+		humanware.emulateKeySequenceFromCommandName(self, "openMenuListKeys", delayAfterAlt=delayAfterAlt)
 
 	@script(
 		description=_("Find"),
@@ -214,7 +221,12 @@ class AppModule(appModuleHandler.AppModule):
 		gesture="br(hidBrailleStandard):space+dot1+dot3+dot4+dot5"	# Space+N
 	)
 	def script_braille_findNext(self, gesture):
-		self.emulateKeyPressFromCommandName("findNext")
+		# In the HumanWare custom "Save As" dialog, Space+N must create a new folder
+		# instead of finding the next search result.
+		if humanware.isInHumanWareSaveAsDialog():
+			self.emulateKeyPressFromCommandName("new")
+		else:
+			self.emulateKeyPressFromCommandName("findNext")
 
 	@script(
 		description=_("Replace"),
@@ -251,24 +263,24 @@ class AppModule(appModuleHandler.AppModule):
 		gesture="br(hidBrailleStandard):space+dot1+dot2+dot8"	# Enter+B
 	)
 	def script_braille_bold(self, gesture):
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "bold", "excel")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "bold", "excel")
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Italics"),
 		gesture="br(hidBrailleStandard):space+dot2+dot4+dot8"	# Enter+I
 	)
 	def script_braille_italics(self, gesture):
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "italics", "excel")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "italics", "excel")
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Underline"),
 		gesture="br(hidBrailleStandard):space+dot1+dot3+dot6+dot8"	# Enter+U
 	)
 	def script_braille_underline(self, gesture):
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "underline", "excel")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "underline", "excel")
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Open font dialog"),
@@ -296,7 +308,7 @@ class AppModule(appModuleHandler.AppModule):
 		core.callLater(100, self._correctFocus)
 
 	def emulateKeyPressFromCommandName(self, commandName):
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "excel")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "excel")
 
 	def _correctFocus(self):
 		"""Queue a focus event to ensure the current object is announced."""

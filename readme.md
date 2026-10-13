@@ -1,3 +1,16 @@
+# NVDA for the BrailleNote evolve
+
+This repository is a fork of [NVDA (NonVisual Desktop Access)](https://www.nvaccess.org/),
+the free and open-source screen reader for Microsoft Windows developed by NV Access.
+
+It is maintained by [Humanware](https://www.humanware.com/) for use on the BrailleNote evolve devices, 
+with our own modifications and add-ons layered on top of the upstream NVDA source.
+
+For everything specific to this fork — project context, our modifications, and how to build
+it — see **[README.Humanware.md](./README.Humanware.md)**.
+
+---
+
 # NVDA
 
 NVDA (NonVisual Desktop Access) is a free, open source screen reader for Microsoft Windows.

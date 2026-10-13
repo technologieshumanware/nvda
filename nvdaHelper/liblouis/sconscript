@@ -47,7 +47,15 @@ def getLouisVersion():
 
 
 # Liblouis is build with Clang, as Microsoft Visual C++ is unable to build C99 code.
-clangDirs = glob.glob(os.path.join(find_vc_pdir(env.get("MSVC_VERSION"), env), r"Tools\Llvm\bin"))
+# Try possible paths for Clang since it may differ for VS 2022 and 2026
+vc_pdir = find_vc_pdir(env.get("MSVC_VERSION"), env)
+clangDirs = []
+for clang_path in [r"Tools\Llvm\x64\bin", r"Tools\Llvm\bin"]:
+	found_dirs = glob.glob(os.path.join(vc_pdir, clang_path))
+	if found_dirs:
+		clangDirs = found_dirs
+		break
+	
 if len(clangDirs) == 0:
 	raise RuntimeError(
 		"Could not find the Clang compiler. "

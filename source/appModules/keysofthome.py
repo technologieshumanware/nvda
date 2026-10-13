@@ -6,7 +6,7 @@
 # KeySoftHome App Module for NVDA
 
 import appModuleHandler
-import appModules.HWUtils
+from appModules import humanware
 from scriptHandler import script
 from NVDAObjects import NVDAObject
 from logHandler import log
@@ -21,14 +21,14 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4+dot8"), # Enter+M
 	)
 	def script_braille_pinUnpinItem(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "pinUnpinItem")
+		humanware.emulateKeyPressFromCommandName(self, "pinUnpinItem")
 
 	@script(
 		description=_("Search"),
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot4"),	# Space + F
 	)
 	def script_braille_mainMenuSearch(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "mainMenuSearch")
+		humanware.emulateKeyPressFromCommandName(self, "mainMenuSearch")
 
 
 	def event_gainFocus(self, obj: NVDAObject, nextHandler: Callable[[], None]):

@@ -48,10 +48,10 @@ from NVDAObjects.UIA import UIA
 from NVDAObjects.UIA.wordDocument import WordDocument as UIAWordDocument
 from NVDAObjects import NVDAObject
 import languageHandler
-from typing import Generator, Callable
+from typing import Generator, Callable, TypeGuard
+from appModules import humanware
 import documentBase
 import browseMode
-import appModules.HWUtils
 import vision
 
 PR_LAST_VERB_EXECUTED = 0x10810003
@@ -116,8 +116,13 @@ def getSentMessageString(obj):
 	return ", ".join(nameList)
 
 
-def isOutlookWordDocument():
-	return isinstance(NVDAHelper.api.globalVars.focusObject, OutlookUIAWordDocument)
+def isOutlookWordDocument(focusObject: NVDAObject | None = None) -> TypeGuard["OutlookUIAWordDocument"]:
+	focusObject = focusObject or NVDAHelper.api.getFocusObject()
+	return isinstance(focusObject, OutlookUIAWordDocument)
+
+def isEditableOutlookWordDocument() -> bool:
+    focusObject = NVDAHelper.api.getFocusObject()
+    return isOutlookWordDocument(focusObject) and not focusObject.isReadonlyViewer
 
 
 class AppModule(appModuleHandler.AppModule):
@@ -137,7 +142,7 @@ class AppModule(appModuleHandler.AppModule):
 		# Explicitly allow gainFocus events for the window class that hosts the active Outlook DatePicker cell
 		# This object gets focus but its window does not conform to our GUI thread info window checks
 		eventHandler.requestEvents("gainFocus", processId=self.processID, windowClassName="rctrl_renwnd32")
-		appModules.HWUtils.init(self)
+		humanware.init(self)
 		log.info("Outlook: Initialized with passive IME approach")
 
 	_hasTriedoutlookAppSwitch = False
@@ -438,7 +443,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_copy(self, gesture):
 		# Translators: Input help message for the copy command.
 		ui.message(_("Copy"))
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, "copy", "HumanwareCommands")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, "copy", "HumanwareCommands") # Ctrl+C
 
 	@script(
 		# Translators: Input help message for the cut command.
@@ -450,7 +455,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_cut(self, gesture):
 		# Translators: Input help message for the cut command.
 		ui.message(_("Cut"))
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, "cut", "HumanwareCommands")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, "cut", "HumanwareCommands") # Ctrl+X
 
 	@script(
 		# Translators: Input help message for the paste command.
@@ -462,7 +467,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_paste(self, gesture):
 		# Translators: Input help message for the paste command.
 		ui.message(_("Paste"))
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, "paste", "HumanwareCommands")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, "paste", "HumanwareCommands") # Ctrl+V
 
 	@script(
 		# Translators: Input help message for the jump to search bar command.
@@ -481,8 +486,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_justifyAligment(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "justifyAlignment", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)	# Ctrl+J
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "justifyAlignment", "outlook")
+			humanware.emulateGesture(kbIdentifier)	# Ctrl+J
 
 	@script(
 		# Translators: Input help message for the go to folder command.
@@ -522,6 +527,11 @@ class AppModule(appModuleHandler.AppModule):
 		gesture="br(hidBrailleStandard):space+dot2+dot3+dot4+dot7"	# Backspace+S
 	)
 	def script_braille_sendMessage(self, gesture):
+		# Disable IME to trigger backtranslation before sending,
+		# preventing braille characters in the sent email.
+		if brailleInput.handler:
+			brailleInput.handler.setBRLUCXEnabled(False)
+			time.sleep(0.1)
 		self.emulateKeyPressFromCommandName("sendMessage")
 
 	@script(
@@ -534,8 +544,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_markMessage(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "leftAlignment", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)	# Ctrl+L
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "leftAlignment", "outlook")
+			humanware.emulateGesture(kbIdentifier)	# Ctrl+L
 		else:
 			focusedObject = api.getFocusObject()
 			if not focusedObject.UIASelectionItemPattern:
@@ -557,8 +567,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_rightAlignment(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "rightAlignment", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)	# Ctrl+R
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "rightAlignment", "outlook")
+			humanware.emulateGesture(kbIdentifier)	# Ctrl+R
 		else:
 			self.emulateKeyPressFromCommandName("refresh")			# F9
 
@@ -567,7 +577,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture="br(hidBrailleStandard):space+dot1+dot2+dot4+dot7"	# Backspace+F
 	)
 	def script_braille_forward(self, gesture):
-		if isOutlookWordDocument():
+		if isEditableOutlookWordDocument():
 			self.emulateKeyPressFromCommandName("replace")	# Ctrl+H
 		else:
 			self.emulateKeyPressFromCommandName("forward")	# Ctrl+F
@@ -594,8 +604,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_readMode(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "readMode", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "readMode", "outlook")
+			humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input help message for the open address book command.
@@ -610,6 +620,11 @@ class AppModule(appModuleHandler.AppModule):
 		gesture="br(hidBrailleStandard):space+dot1+dot5"	# Space+E
 	)
 	def script_braille_exit(self, gesture):
+		# Disable IME to trigger backtranslation before the exit dialog appears,
+		# preventing braille characters in saved emails.
+		if brailleInput.handler:
+			brailleInput.handler.setBRLUCXEnabled(False)
+			time.sleep(0.1)
 		self.emulateKeyPressFromCommandName("exit")
 
 	@script(
@@ -618,8 +633,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_centerAlignment(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "centerAlignment", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "centerAlignment", "outlook")
+			humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Bold"),
@@ -627,8 +642,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_bold(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "bold", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "bold", "outlook")
+			humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Italics"),
@@ -636,8 +651,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_italics(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "italics", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "italics", "outlook")
+			humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Underline"),
@@ -645,8 +660,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_underline(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "underline", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "underline", "outlook")
+			humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Increase font size"),
@@ -654,8 +669,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_increaseFontSize(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "increaseFontSize", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "increaseFontSize", "outlook")
+			humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Decrease font size"),
@@ -663,8 +678,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_decreaseFontSize(self, gesture):
 		if isOutlookWordDocument():
-			kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "decreaseFontSize", "outlook")
-			appModules.HWUtils.emulateGesture(kbIdentifier)
+			kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "decreaseFontSize", "outlook")
+			humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Open font dialog"),
@@ -683,7 +698,7 @@ class AppModule(appModuleHandler.AppModule):
 			self.emulateKeyPressFromCommandName("insertHyperlink")
 
 	def emulateKeyPressFromCommandName(self, commandName):
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "outlook")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "outlook")
 
 	@script(
 		description=_("Open menu list"),
@@ -692,14 +707,15 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_openMenuList(self, gesture):
 		time.sleep(0.5)
 		focus = api.getFocusObject()
-		appModules.HWUtils.emulateKeyPress("alt")
 		# In document view (message reading/composing), an additional delay is required
 		# to allow focus to transition from the document to the menu bar before processing
 		# the menu item keystrokes (M and L), otherwise they get intercepted by the document.
-		if focus and focus.role == controlTypes.Role.DOCUMENT:
-			time.sleep(0.5)
-		appModules.HWUtils.emulateKeyPress("m")
-		appModules.HWUtils.emulateKeyPress("l")
+		delayAfterAlt = 0.5 if focus and focus.role == controlTypes.Role.DOCUMENT else 0.0
+
+		# Use the locale-specific key sequence from gesturesFromCommandName.ini
+		# English: "alt,m,l" / German: "alt,y,2,l"
+		humanware.emulateKeySequenceFromCommandName(self, "openMenuListKeys", delayAfterAlt=delayAfterAlt)
+
 
 	# HumanWare end section
 
@@ -999,13 +1015,33 @@ class UIAGridRow(RowWithFakeNavigation, UIA):
 					verbLabel = executedVerbLabels.get(v.value, None)
 					if verbLabel:
 						textList.append(verbLabel)
-			# try:
-			# 	attachmentCount = selection.attachments.count
-			# except COMError:
-			# 	attachmentCount = 0
-			# # Translators: when an email has attachments
-			# if attachmentCount > 0:
-			# 	textList.append(_("has attachment"))
+
+			try:
+				log.debugWarning("Getting attachment count for email")
+				attachmentCount = 0
+				attachments = selection.attachments
+				# Only count real file attachments, not embedded content
+				for i in range(1, attachments.count + 1):  # COM collections are 1-indexed
+					attachment = attachments.item(i)
+					try:
+						# Check if attachment is embedded (has ContentID used in HTML as cid:...)
+						pa = attachment.PropertyAccessor
+						contentId = pa.GetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F")
+						if contentId:
+							# This is embedded content in the HTML body (image, video, etc.), skip it
+							continue
+					except (COMError, AttributeError):
+						# No ContentID means it's a regular file attachment
+						pass
+					attachmentCount += 1
+				log.debugWarning("Email has %d file attachments (excluding embedded content)", attachmentCount)
+			except COMError:
+				attachmentCount = 0
+
+			# Translators: when an email has attachments
+			if attachmentCount > 0:
+				textList.append(_("has attachment"))
+
 			try:
 				importance = selection.importance
 			except COMError:
@@ -1166,6 +1202,18 @@ class MailViewerTreeInterceptor(WordDocumentTreeInterceptor):
 
 
 class BaseOutlookWordDocument(BaseWordDocument):
+	isReadonlyViewer: bool
+
+	@script(gestures=["kb:escape"])
+	def script_escapeBacktranslate(self, gesture):
+		"""Disable IME to trigger backtranslation before ESC opens a dismiss dialog
+		that could lock the document and leave braille characters."""
+		if brailleInput.handler:
+			log.debug("Outlook: ESC pressed in document, disabling IME before dialog")
+			brailleInput.handler.setBRLUCXEnabled(False)
+			time.sleep(0.1)
+		gesture.send()
+
 	@script(gestures=["kb:tab", "kb:shift+tab"])
 	def script_tab(self, gesture):
 		bookmark = self.makeTextInfo(textInfos.POSITION_SELECTION).bookmark

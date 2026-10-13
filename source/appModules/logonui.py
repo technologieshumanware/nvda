@@ -1,3 +1,6 @@
+# This file was modified for the BrailleNote evolve
+# Technologies Humanware 2026
+
 # appModules/logonui.py
 # A part of NonVisual Desktop Access (NVDA)
 # This file is covered by the GNU General Public License.
@@ -42,6 +45,13 @@ class LogonDialog(Dialog):
 class Win8PasswordField(UIA):
 	# This UIA object has no invoke pattern, at least set focus.
 	# #6024: Affects both Windows 8.x and 10.
+
+	# The PasswordBox UIA TextPattern returns empty text for security,
+	# leaving only a 1-cell cursor indicator as the TextInfoRegion.
+	# This flag tells braille.BrailleBuffer.focus() not to pin that region
+	# to the hard left, so the field context stays visible on the display.
+	_brailleSuppressHardLeftPinning = True
+
 	def doAction(self, index=None):
 		if not index:
 			self.setFocus()

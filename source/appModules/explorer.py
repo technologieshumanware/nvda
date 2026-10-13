@@ -15,7 +15,7 @@ from comtypes import COMError
 import time
 from typing import Callable
 import appModuleHandler
-import appModules.HWUtils
+from appModules import humanware
 import controlTypes
 from scriptHandler import script
 import winUser
@@ -217,7 +217,7 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot3+dot7") # Backspace+L
 	)
 	def script_braille_selectUnselectElement(self, gesture):
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, "selectUnselectElement")
+		humanware.emulateKeyPressFromCommandName(self, "selectUnselectElement")
 
 	# C901 'chooseNVDAObjectOverlayClasses' is too complex
 	# Note: when working on chooseNVDAObjectOverlayClasses, look for opportunities to simplify

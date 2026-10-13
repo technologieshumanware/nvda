@@ -50,8 +50,8 @@ import scriptHandler
 from locationHelper import RectLTRB, RectLTWH
 from NVDAObjects.window._msOfficeChart import OfficeChart
 from utils.urlUtils import _LinkData
-import appModules.HWUtils
 from scriptHandler import script
+from appModules import humanware
 
 # Translators: The name of a category of NVDA commands.
 SCRCAT_POWERPOINT = _("PowerPoint")
@@ -1983,7 +1983,7 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_copy(self, gesture):
 		ui.message(_("Copy"))
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, "copy", "HumanwareCommands")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, "copy", "HumanwareCommands") # Ctrl+C
 
 	@script(
 		description=_("Cut"),
@@ -1993,7 +1993,7 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_cut(self, gesture):
 		ui.message(_("Cut"))
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, "cut", "HumanwareCommands")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, "cut", "HumanwareCommands") # Ctrl+X
 
 	@script(
 		description=_("Paste"),
@@ -2003,7 +2003,7 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_paste(self, gesture):
 		ui.message(_("Paste"))
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, "paste", "HumanwareCommands")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, "paste", "HumanwareCommands") # Ctrl+V
 
 	@script(
 		description=_("Info"),
@@ -2013,9 +2013,9 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_info(self, gesture):
 		time.sleep(0.5)
-		appModules.HWUtils.emulateGesture("alt")
-		self.emulateKeyPressFromCommandName("fileKey") # this is not named after a keyboard key because depending on language it can be different
-		self.emulateKeyPressFromCommandName("backstageInfoKey") # this is not named after a keyboard key because depending on language it can be different
+		# Use the locale-specific key sequence from gesturesFromCommandName.ini
+		# English: "alt,f,i" / German: "alt,d,i"
+		humanware.emulateKeySequenceFromCommandName(self, "openFileInfoKeys")
 
 	@script(
 		description=_("Open menu list"),
@@ -2023,9 +2023,16 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_openMenuList(self, gesture):
 		time.sleep(0.5)
-		appModules.HWUtils.emulateGesture("alt")
-		appModules.HWUtils.emulateGesture("m")
-		appModules.HWUtils.emulateGesture("l")
+		focus = api.getFocusObject()
+		# Add extra delay after Alt if focus is in a content area (slide pane, editable text, table cell)
+		# so the ribbon can activate before the subsequent menu keystrokes are sent.
+		delayAfterAlt = 0.5 if focus and focus.role in (
+			controlTypes.Role.PANE,
+			controlTypes.Role.EDITABLETEXT,
+			controlTypes.Role.TABLECELL,
+			controlTypes.Role.DOCUMENT,
+		) else 0.0
+		humanware.emulateKeySequenceFromCommandName(self, "openMenuListKeys", delayAfterAlt=delayAfterAlt)
 
 	@script(
 		description=_("Find"),
@@ -2040,6 +2047,11 @@ class AppModule(appModuleHandler.AppModule):
 
 	)
 	def script_braille_findNext(self, gesture):
+		# In the HumanWare custom "Save As" dialog, Space+N must create a new folder
+		# instead of finding the next search result.
+		if humanware.isInHumanWareSaveAsDialog():
+			self.emulateKeyPressFromCommandName("new")
+			return
 		isPresenting = False
 		try:
 			if self._ppApplication:
@@ -2048,7 +2060,7 @@ class AppModule(appModuleHandler.AppModule):
 		except Exception:
 			pass
 		if isPresenting:
-			appModules.HWUtils.emulateGestureFromCommandName(self, "readNotesInPresentationMode")
+			humanware.emulateGestureFromCommandName(self, "readNotesInPresentationMode")
 		else:
 			self.emulateKeyPressFromCommandName("findNext")
 
@@ -2080,8 +2092,8 @@ class AppModule(appModuleHandler.AppModule):
 	)
 	def script_braille_centerAlignment(self, gesture):
 		ui.message(_("centered"))
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "centerAlignment", "powerpnt")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "centerAlignment", "powerpnt")
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Left alignment"),
@@ -2090,8 +2102,8 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_leftAlignment(self, gesture):
 		# Translators: Input help message for the left align command.
 		ui.message(_("left aligned"))
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "leftAlignment", "powerpnt")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "leftAlignment", "powerpnt")
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Right alignment"),
@@ -2100,16 +2112,16 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_rightAlignment(self, gesture):
 		# Translators: Input help message for the right align command.
 		ui.message(_("right aligned"))
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "rightAlignment", "powerpnt")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "rightAlignment", "powerpnt")
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		description=_("Bold"),
 		gesture="br(hidBrailleStandard):space+dot1+dot2+dot8"	# Enter+B
 	)
 	def script_braille_bold(self, gesture):
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "bold", "powerpnt")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "bold", "powerpnt")
+		humanware.emulateGesture(kbIdentifier)
 		self._announceBoldState()
 
 	@script(
@@ -2117,8 +2129,8 @@ class AppModule(appModuleHandler.AppModule):
 		gesture="br(hidBrailleStandard):space+dot2+dot4+dot8"	# Enter+I
 	)
 	def script_braille_italics(self, gesture):
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "italics", "powerpnt")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "italics", "powerpnt")
+		humanware.emulateGesture(kbIdentifier)
 		self._announceItalicState()
 
 	@script(
@@ -2126,8 +2138,8 @@ class AppModule(appModuleHandler.AppModule):
 		gesture="br(hidBrailleStandard):space+dot1+dot3+dot6+dot8"	# Enter+U
 	)
 	def script_braille_underline(self, gesture):
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, "underline", "powerpnt")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		kbIdentifier = humanware.getShortcutFromCommandNameAndAppModuleName(self, "underline", "powerpnt")
+		humanware.emulateGesture(kbIdentifier)
 		self._announceUnderlineState()
 
 	@script(
@@ -2233,7 +2245,7 @@ class AppModule(appModuleHandler.AppModule):
 	# Localized scripts section end
 
 	def emulateKeyPressFromCommandName(self, commandName):
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "powerpnt")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "powerpnt")
 
 	def _announceBoldState(self):
 		"""Announce the bold state if focus is a TextFrame."""

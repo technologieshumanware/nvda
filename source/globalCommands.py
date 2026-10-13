@@ -221,7 +221,7 @@ class GlobalCommands(ScriptableObject):
 			"will tell you what script is associated with that input, if any.",
 		),
 		category=SCRCAT_INPUT,
-		gestures=("kb:NVDA+1","br(hidBrailleStandard):space+dot1+dot3+dot7"),
+		gesture=("kb:NVDA+1"),
 		speakOnDemand=True,
 	)
 	def script_toggleInputHelp(self, gesture):

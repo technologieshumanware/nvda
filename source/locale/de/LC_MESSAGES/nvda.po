@@ -21149,7 +21149,7 @@ msgstr " ⠫⠍⠑ "
 #. Translators: announcement for interaction with a braille edit box
 #: brailleInput.py:204
 msgid "A Braille entry is required"
-msgstr "Eine Brailleeingebe wird benötigt"
+msgstr "eine Brailleeingabe wird benötigt"
 
 #. Translators: announcement for turning off the native braille
 #: brailleInput.py:207

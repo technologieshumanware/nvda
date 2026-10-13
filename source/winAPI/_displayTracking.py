@@ -1,3 +1,6 @@
+# This file was modified for the BrailleNote evolve
+# Technologies Humanware 2026
+
 # A part of NonVisual Desktop Access (NVDA)
 # Copyright (C) 2022-2025 NV Access Limited, Bill Dengler
 # This file is covered by the GNU General Public License.
@@ -100,15 +103,21 @@ def reportScreenOrientationChange(heightWidth: int) -> None:
 	"""
 	# Resolution detection comes from an article found at
 	# https://msdn.microsoft.com/en-us/library/ms812142.aspx.
+	
+	#On BNEvolve, we prefer not to have those messages, they are not really relevant
+	#and an ongoing nuisance when a driver fires those without reason 
+	muteMessages = True
+
+
 	height = winUser.HIWORD(heightWidth)
 	width = winUser.LOWORD(heightWidth)
 	newState = _getNewOrientationStyle(_orientationState, height, width)
-	if newState:
+	if newState :
 		_orientationState.style = newState
-		if _orientationState.style == Orientation.LANDSCAPE:
+		if _orientationState.style == Orientation.LANDSCAPE and not muteMessages:
 			# Translators: The screen is oriented so that it is wider than it is tall.
 			ui.message(_("Landscape"))
-		if _orientationState.style == Orientation.PORTRAIT:
+		if _orientationState.style == Orientation.PORTRAIT and not muteMessages:
 			# Translators: The screen is oriented in such a way that the height is taller than it is wide.
 			ui.message(_("Portrait"))
 

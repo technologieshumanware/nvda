@@ -242,16 +242,16 @@ elif certFile:
 	env["signExec"] = signExecCert
 
 elif humanwareSign:
-	# Local code signing from humanwaresign.ps1 script
+	# Local code signing from Humanware-Sign.ps1 script
 
 	env["ENV"]["PATH"] = r"C:\Program Files\dotnet;" + env["ENV"]["PATH"]
 	env["ENV"]["WINDIR"] = r"C:\Windows"
 
 	humanwareSignScript = ""
 	try:
-		humanwareSignScript = glob(fr"{os.getcwd()}\**\humanwaresign.ps1", recursive=True)[0]
+		humanwareSignScript = glob(fr"{os.getcwd()}\**\Humanware-Sign.ps1", recursive=True)[0]
 	except IndexError as e:
-		print (f"humanwaresign.ps1 file not found. {e}")
+		print (f"Humanware-Sign.ps1 file not found. {e}")
 		sys.exit(1)
 
 	def signExecHumanware(target, source, env):

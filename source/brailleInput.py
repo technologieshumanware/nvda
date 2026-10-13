@@ -498,19 +498,31 @@ class BrailleInputHandler(AutoPropertyObject):
 
 		Must be called *after* the delimiter character has been committed to the
 		document (e.g. inside a :func:`core.callLater` callback).  At that point
-		the caret sits one character past the end of the word (on the delimiter);
-		moving back one character places us inside the word (or on the delimiter
-		itself if the word is empty), and expanding to :data:`textInfos.UNIT_WORD`
-		retrieves the full word — including any prefix that was erased and retyped.
+		the caret sits one character past the end of the word (on the delimiter).
+
+		Rather than relying on :data:`textInfos.UNIT_WORD` (which splits on
+		punctuation, so "but, " would yield just ","), we read the line text up to
+		the caret and take the trailing run of non-delimiter characters.  This
+		matches the whitespace-delimited notion of a "word" used by
+		:meth:`_isWordDelimiter`, so trailing punctuation stays attached
+		(e.g. "but,"), and it includes any prefix that was erased and retyped.
 		"""
 		focus = api.getFocusObject()
 		try:
 			caretInfo = focus.makeTextInfo(textInfos.POSITION_CARET)
-			wordInfo = caretInfo.copy()
-			if wordInfo.move(textInfos.UNIT_CHARACTER, -1) == 0:
-				return None
-			wordInfo.expand(textInfos.UNIT_WORD)
-			return wordInfo.text.strip() or None
+			# Build a range covering the current line up to (and including) the caret.
+			chunkInfo = caretInfo.copy()
+			chunkInfo.expand(textInfos.UNIT_LINE)
+			chunkInfo.setEndPoint(caretInfo, "endToEnd")
+			text = chunkInfo.text
+			# Drop the just-typed trailing delimiter, then take the trailing run of
+			# non-delimiter characters (the whitespace-delimited word).
+			text = self._stripTrailingWordDelimiters(text)
+			i = len(text)
+			while i > 0 and not self._isWordDelimiter(text[i - 1]):
+				i -= 1
+			result = text[i:] or None
+			return result
 		except Exception:
 			log.debugWarning("BrailleIME: failed to read word from TextInfo", exc_info=True)
 			return None
@@ -524,7 +536,7 @@ class BrailleInputHandler(AutoPropertyObject):
 		"""
 		word = self._getTypedWordFromTextInfo() or fallback
 		if word:
-			log.debug(f"_speakTypedWord: word={word}")
+			log.debug(f"_speakTypedWord: speaking word={word!r}")
 			speech.speakText(word, priority=speech.priorities.Spri.NOW)
 
 	def _handleBrailleImeSpeechInput(self, dots: int) -> None:
@@ -536,11 +548,15 @@ class BrailleInputHandler(AutoPropertyObject):
 		char = UNICODE_BRAILLE_START + dots
 		self._brailleImeSpeechCells.append(char)
 
-		if speakChars:
+		if speakChars and (dots != 0 or not speakWords):
 			# Speak braille-unicode echo.
+			# Skip the space cell (dots == 0) *only when* we're also going to speak
+			# the completed word below: it's a word delimiter announced as "space"
+			# (U+2800 maps to "space" in symbols.dic), which would race with / drown
+			# out the word echo. When speak-typed-words is off there is no word echo,
+			# so the space must still be announced like any other typed character.
 			speech._suppressSpeakTypedCharacters(1)
 			core.callLater(30, speech.speakSpelling, chr(char))
-
 
 		#really it doesn't make sense to call the backtranslation unless
 		#we have a space here (dots = 0)

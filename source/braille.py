@@ -2124,18 +2124,25 @@ class BrailleBuffer(baseObject.AutoPropertyObject):
 	def _previousWindow(self):
 		start = self.windowStartPos
 		if start > 0:
+
 			focusObj = api.getFocusObject()
 			if focusObj and focusObj.role == controlTypes.ROLE_LISTITEM:
 				# For list items, prevent scrolling back when there's a selection (no cursor)
 				# and the window is already at the start of the last region.
 				# This avoids unnecessary scrolling when the user is already viewing the beginning of the content.
+
 				nbRegion = len(self.regions)
 
 				if (nbRegion > 0):
 					if (self.brailleCursorPos is None):
 						lastRegionWithPos = list(self.regionsWithPositions)[-1]
-						if (lastRegionWithPos.start == self.windowStartPos):
+						if (lastRegionWithPos.start >= self.windowStartPos) and (lastRegionWithPos.start < self.windowStartPos + self.handler.displaySize):
 							return False
+						else: 
+							#but still allow panning Left if we're not on the first display 
+							self.windowEndPos = start
+
+
 			else:
 				self.windowEndPos = start
 		return self.windowStartPos != start
@@ -2168,9 +2175,17 @@ class BrailleBuffer(baseObject.AutoPropertyObject):
 		"""
 		pos = self.regionPosToBufferPos(region, 0)
 		self.windowStartPos = pos
-		if region.focusToHardLeft or config.conf["braille"]["focusContextPresentation"] == CONTEXTPRES_SCROLL:
-			return
 		end = self.windowEndPos
+		if region.focusToHardLeft or config.conf["braille"]["focusContextPresentation"] == CONTEXTPRES_SCROLL:
+			# If the object has _brailleSuppressHardLeftPinning set (e.g. login screen password field)
+			# and the focused region is only 1 cell (a cursor-only indicator), don't pin it
+			# to the hard left. Fall through to show it in context with the field name.
+			obj = getattr(region, "obj", None)
+			if end - pos <= 1 and obj and getattr(obj, "_brailleSuppressHardLeftPinning", False):
+				pass  # Fall through to show context
+			else:
+				return
+
 		if end - pos < self.handler.displaySize:
 			# We can fit more on the display while still keeping pos visible.
 			# Force windowStartPos to be recalculated based on windowEndPos.

@@ -23,7 +23,7 @@ from logHandler import log
 import mathPres
 from NVDAObjects.IAccessible.winword import WordDocument as IAccessibleWordDocument
 from NVDAObjects.UIA.wordDocument import WordDocument as UIAWordDocument
-import appModules.HWUtils
+from appModules import humanware
 from NVDAObjects.window.winword import (
 	WordDocument,
 	WdOutlineLevel,
@@ -217,8 +217,35 @@ class AppModule(appModuleHandler.AppModule):
 		return "not document content"
 
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
-		if UIAWordDocument in clsList or IAccessibleWordDocument in clsList or Dialog in clsList and obj.UIAAutomationId == "HWWordDialog":
+		if (
+			UIAWordDocument in clsList
+			or IAccessibleWordDocument in clsList
+			# Apply the Word document overlay (and its braille shortcuts) to the
+			# HumanWare "HWWordDialog" expression editor (BNW-2013). The Dialog guard
+			# keeps this separate from the Save As dialog, whose HWWordDialog wrapper
+			# is a WINDOW rather than a DIALOG.
+			or (Dialog in clsList and getattr(obj, "UIAAutomationId", None) == "HWWordDialog")
+		):
 			clsList.insert(0, WinwordWordDocument)
+		elif self._isHWWordSaveAsDialog(obj):
+			clsList.insert(0, HWWordSaveAsDialog)
+
+	def _isHWWordSaveAsDialog(self, obj: NVDAObject) -> bool:
+		"""Return True if obj is the "OpenSaveAsDialog" pane of the HumanWare Save As dialog.
+
+		The dialog is a UIA pane whose className is "OpenSaveAsDialog" (it has no
+		automationId). We corroborate it via its "FileManagerView" child pane, since
+		the wrapping window's automationId is not reliable across hosts.
+		"""
+		if humanware.getUIAClassName(obj) != humanware.SAVE_AS_DIALOG_CLASS_NAME:
+			return False
+		try:
+			for child in obj.children:
+				if humanware.getUIAClassName(child) == humanware.SAVE_AS_FILE_MANAGER_CLASS_NAME:
+					return True
+		except Exception:
+			pass
+		return False
 
 	def _supportsBRLUCX(self) -> bool:
 		"""Check if current context supports BRLUCX."""
@@ -230,7 +257,7 @@ class AppModule(appModuleHandler.AppModule):
 		return getattr(api.getFocusObject(), "UIAAutomationId", None) == "BrailleEditText"
 
 	def getShortcutFromCommandName(self, commandName):
-		return appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, commandName, "winword")
+		return humanware.getShortcutFromCommandNameAndAppModuleName(self, commandName, "winword")
 
 	@script(
 		# Translators: Input Help message for the key math command.
@@ -240,7 +267,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_keyMath(self, gesture):
 		if self._isWordExpressionEditor():
 			kbIdentifier = self.getShortcutFromCommandName("keyMath")
-			appModules.HWUtils.emulateKeyPress(kbIdentifier)
+			humanware.emulateKeyPress(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the insert template command.
@@ -250,7 +277,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_insertTemplate(self, gesture):
 		if self._isWordExpressionEditor():
 			kbIdentifier = self.getShortcutFromCommandName("insertTemplate")
-			appModules.HWUtils.emulateKeyPress(kbIdentifier)
+			humanware.emulateKeyPress(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the announce expression command.
@@ -260,7 +287,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_announceExpression(self, gesture):
 		if self._isWordExpressionEditor():
 			kbIdentifier = self.getShortcutFromCommandName("announceExpression")
-			appModules.HWUtils.emulateKeyPress(kbIdentifier)
+			humanware.emulateKeyPress(kbIdentifier)
 		else:
 			humanwareCommands.script_reportCurrentLine(gesture)
 
@@ -272,20 +299,20 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_copyMathML(self, gesture):
 		if self._isWordExpressionEditor():
 			kbIdentifier = self.getShortcutFromCommandName("copyMathMLToClipboard")
-			appModules.HWUtils.emulateKeyPress(kbIdentifier)
+			humanware.emulateKeyPress(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the insert equation to document / insert or edit equation command.
 		description=_("Insert equation to document / Insert or edit equation"),
-		gesture="br(hidBrailleStandard):space+dot1+dot3+dot4+dot8" #Enter+M
+		gesture="br(hidBrailleStandard):space+dot1+dot3+dot4+dot8" # Enter+M
 	)
 	def script_braille_insert_equation_to_document_or_insert_edit_equation(self, gesture):
 		#Select the appropriate action depending if we are in expression editor or in document
 		if self._isWordExpressionEditor():
-			appModules.HWUtils.emulateKeyPress("enter")
+			humanware.emulateKeyPress("enter")
 		else:
 			kbIdentifier = self.getShortcutFromCommandName("insertOrEditEquation")
-			appModules.HWUtils.emulateKeyPress(kbIdentifier)
+			humanware.emulateKeyPress(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the complete MathML entry command.
@@ -295,7 +322,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_complete_mathml_entry(self, gesture):
 		if self._isWordExpressionEditor():
 			kbIdentifier = self.getShortcutFromCommandName("completeMathMLEntry")
-			appModules.HWUtils.emulateKeyPress(kbIdentifier)
+			humanware.emulateKeyPress(kbIdentifier)
 		else:
 			brailleInput.handler.enter()
 
@@ -308,7 +335,7 @@ class AppModule(appModuleHandler.AppModule):
 	def script_braille_insert_braille_symbol(self, gesture):
 		if self._isWordExpressionEditor():
 			kbIdentifier = self.getShortcutFromCommandName("insertBrailleSymbol")
-			appModules.HWUtils.emulateKeyPress(kbIdentifier)
+			humanware.emulateKeyPress(kbIdentifier)
 
 	#End Humanware section: key gestures for Word Expression Editor
 
@@ -446,6 +473,10 @@ class WinwordWordDocument(WordDocument):
 		gesture="br(hidBrailleStandard):space+dot1+dot5"	# Space+E
 	)
 	def script_braille_exit(self, gesture):
+		# Disable IME to trigger backtranslation before the save dialog appears,
+		# preventing braille characters in saved documents.
+		if brailleInput.handler:
+			brailleInput.handler.setBRLUCXEnabled(False)
 		self.emulateKeyPressFromCommandName("exit")
 
 	@script(
@@ -463,7 +494,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_readMode(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("readMode")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the "Where am I" command.
@@ -472,7 +503,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_whereAmI(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("whereAmI")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the find command.
@@ -493,7 +524,7 @@ class WinwordWordDocument(WordDocument):
 	@script(
 		# Translators: Input Help message for the find next command.
 		description=_("Find next"),
-		gesture="br(hidBrailleStandard):space+dot1+dot3+dot4+dot5"	# Space+N
+		gesture="br(hidBrailleStandard):space+dot1+dot3+dot4+dot5",	# Space+N
 	)
 	def script_braille_findNext(self, gesture):
 		self.emulateKeyPressFromCommandName("findNext")
@@ -513,7 +544,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_centerAlignment(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("centerAlignment")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the left alignment command.
@@ -522,7 +553,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_leftAlignment(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("leftAlignment")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the right alignment command.
@@ -531,7 +562,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_rightAlignment(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("rightAlignment")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the justify alignment command.
@@ -540,7 +571,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_justifyAlignment(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("justifyAlignment")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the bold command.
@@ -549,7 +580,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_bold(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("bold")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the italics command.
@@ -558,7 +589,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_italics(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("italics")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the underline command.
@@ -567,7 +598,7 @@ class WinwordWordDocument(WordDocument):
 	)
 	def script_braille_underline(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("underline")
-		appModules.HWUtils.emulateGesture(kbIdentifier)
+		humanware.emulateGesture(kbIdentifier)
 
 	@script(
 		# Translators: Input Help message for the open font dialog command.
@@ -585,9 +616,9 @@ class WinwordWordDocument(WordDocument):
 	def script_braille_increaseFontSize(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("increaseFontSize")
 		if not self.WinwordSelectionObject:
-			return appModules.HWUtils.emulateGesture(kbIdentifier)
+			return humanware.emulateGesture(kbIdentifier)
 		val = self._WaitForValueChangeForAction(
-			lambda: appModules.HWUtils.emulateGesture(kbIdentifier),
+			lambda: humanware.emulateGesture(kbIdentifier),
 			lambda: self.WinwordSelectionObject.font.size,
 		)
 		# Translators: a message when increasing or decreasing font size in Microsoft Word
@@ -601,9 +632,9 @@ class WinwordWordDocument(WordDocument):
 	def script_braille_decreaseFontSize(self, gesture):
 		kbIdentifier = self.getShortcutFromCommandName("decreaseFontSize")
 		if not self.WinwordSelectionObject:
-			return appModules.HWUtils.emulateGesture(kbIdentifier)
+			return humanware.emulateGesture(kbIdentifier)
 		val = self._WaitForValueChangeForAction(
-			lambda: appModules.HWUtils.emulateGesture(kbIdentifier),
+			lambda: humanware.emulateGesture(kbIdentifier),
 			lambda: self.WinwordSelectionObject.font.size,
 		)
 		# Translators: a message when increasing or decreasing font size in Microsoft Word
@@ -642,16 +673,38 @@ class WinwordWordDocument(WordDocument):
 				# Trigger a back translation before opening the menu list
 				brailleInput.handler.setBRLUCXEnabled(False)
 
-		appModules.HWUtils.emulateKeyPress("alt")
-		if focus and focus.role == controlTypes.Role.DOCUMENT:
-			time.sleep(0.5)
-		appModules.HWUtils.emulateKeyPress("m")
-		appModules.HWUtils.emulateKeyPress("l")
+		# Add extra delay after Alt if in document (needed for menu to appear)
+		delayAfterAlt = 0.5 if focus and focus.role == controlTypes.Role.DOCUMENT else 0.0
+		
+		# Use the locale-specific key sequence from gesturesFromCommandName.ini
+		# English: "alt,m,l" / German: "alt,y,2,l"
+		humanware.emulateKeySequenceFromCommandName(self, "openMenuListKeys", delayAfterAlt=delayAfterAlt)
 
 	def emulateKeyPressFromCommandName(self, commandName):
-		appModules.HWUtils.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "winword")
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, commandName, "winword")
 
 	def getShortcutFromCommandName(self, commandName):
-		return appModules.HWUtils.getShortcutFromCommandNameAndAppModuleName(self, commandName, "winword")
+		return humanware.getShortcutFromCommandNameAndAppModuleName(self, commandName, "winword")
 
 	# HumanWare End Section
+
+
+class HWWordSaveAsDialog(NVDAObject):
+	"""Overlay for the HumanWare custom "Save As" dialog (UIA className "OpenSaveAsDialog").
+
+	The dialog is hosted inside winword.exe (a WPF/VSTA window), so the focus lands on
+	a WPF child control rather than on a Word document. Because of this, the document
+	overlay (WinwordWordDocument) and its braille scripts are not in scope here.
+	This dedicated overlay is attached to the dialog object in
+	AppModule.chooseNVDAObjectOverlayClasses, and canPropagate=True lets the gesture
+	bubble up from the focused child control to this object.
+	"""
+
+	@script(
+		# Translators: Input Help message for creating a new folder in the Save As dialog.
+		description=_("New folder"),
+		gesture="br(hidBrailleStandard):space+dot1+dot3+dot4+dot5",  # Space+N
+		canPropagate=True,
+	)
+	def script_braille_newFolder(self, gesture):
+		humanware.emulateKeyPressFromCommandNameAndAppModuleName(self, "new", "winword")

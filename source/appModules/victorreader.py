@@ -7,14 +7,15 @@
 # Provides enhanced braille and keyboard support for VictorReader application
 
 import appModuleHandler
-import appModules.HWUtils
 import api
 import controlTypes
 import humanwareCommands
 
+from appModules import humanware
 from scriptHandler import script
 from logHandler import log
 from keyboardHandler import KeyboardInputGesture
+from globalCommands import SCRCAT_BRAILLE
 
 class AppModule(appModuleHandler.AppModule):
 	"""
@@ -79,7 +80,12 @@ class AppModule(appModuleHandler.AppModule):
 		gesture=("br(hidBrailleStandard):space+dot1+dot3+dot4+dot5"), # Space+N
 	)
 	def script_braille_findNext(self, gesture):
-		self._executeCommand("findNext")
+		# In the HumanWare custom Open / Save As dialog, Space+N must create a new
+		# folder (control+n) instead of finding the next search result.
+		if humanware.isInHumanWareSaveAsDialog():
+			humanware.emulateKeyPress("control+n")
+		else:
+			self._executeCommand("findNext")
 
 	@script(
 		# Translators: Input Help message for the "Find Previous" command.
@@ -295,7 +301,7 @@ class AppModule(appModuleHandler.AppModule):
 	# === HEADING NAVIGATION ===
 	@script(
 		description=_("Inputs braille dots via the braille keyboard"),
-		category=_("Braille"),
+		category=SCRCAT_BRAILLE,
 		gesture="bk:dots",
 	)
 	def script_braille_dots(self, gesture):
@@ -311,55 +317,55 @@ class AppModule(appModuleHandler.AppModule):
 			# Check for specific dot combinations
 			if len(dots_pressed) == 1 and '2' in dots_pressed:
 				# Dot 2 only -> simulate "1"
-				appModules.HWUtils.emulateKeyPress("1")
+				humanware.emulateKeyPress("1")
 				log.info("Next heading 1 simulated via braille dot 2")
 				return
 			elif len(dots_pressed) == 2:
 				if '2' in dots_pressed and '3' in dots_pressed:
 					# Dots 2 and 3 -> simulate "2"
-					appModules.HWUtils.emulateKeyPress("2")
+					humanware.emulateKeyPress("2")
 					log.info("Next heading 2 simulated via braille dots 2 and 3")
 					return
 				elif '2' in dots_pressed and '5' in dots_pressed:
 					# Dots 2 and 5 -> simulate "3"
-					appModules.HWUtils.emulateKeyPress("3")
+					humanware.emulateKeyPress("3")
 					log.info("Next heading 3 simulated via braille dots 2 and 5")
 					return
 				elif '1' in dots_pressed and '3' in dots_pressed:
 					# Dots 1 and 3 -> simulate "k"
-					appModules.HWUtils.emulateKeyPress("k")
+					humanware.emulateKeyPress("k")
 					log.info("Play/Pause 'k' simulated via braille dots 1 and 3")
 					return
 			elif len(dots_pressed) == 3:
 				if '1' in dots_pressed and '2' in dots_pressed and '3' in dots_pressed:
 					# Dots 1, 2 and 3 -> simulate "l"
-					appModules.HWUtils.emulateKeyPress("l")
+					humanware.emulateKeyPress("l")
 					log.info("Jump forward 'l' simulated via braille dots 1, 2 and 3")
 					return
 				elif '2' in dots_pressed and '4' in dots_pressed and '5' in dots_pressed:
 					# Dots 2, 4 and 5 -> simulate "j"
-					appModules.HWUtils.emulateKeyPress("j")
+					humanware.emulateKeyPress("j")
 					log.info("Jump backward 'j' simulated via braille dots 2, 4 and 5")
 					return
 				elif '1' in dots_pressed and '2' in dots_pressed and '5' in dots_pressed:
 					# Dots 1, 2 and 5 -> simulate "h"
-					appModules.HWUtils.emulateKeyPress("h")
+					humanware.emulateKeyPress('h')
 					log.info("Next heading 'h' simulated via braille dots 1, 2 and 5")
 					return
 			elif len(dots_pressed) == 4:
 				if '1' in dots_pressed and '2' in dots_pressed and '3' in dots_pressed and '4' in dots_pressed:
 					# Dots 1, 2, 3 and 4 -> simulate "p"
-					appModules.HWUtils.emulateKeyPress("p")
+					humanware.emulateKeyPress("p")
 					log.info("Previous navigation level 'p' simulated via braille dots 1, 2, 3 and 4")
 					return
 				elif '1' in dots_pressed and '3' in dots_pressed and '4' in dots_pressed and '5' in dots_pressed:
 					# Dots 1, 3, 4 and 5 -> simulate "n"
-					appModules.HWUtils.emulateKeyPress("n")
+					humanware.emulateKeyPress("n")
 					log.info("Next navigation level 'n' simulated via braille dots 1, 3, 4 and 5")
 					return
 				elif '2' in dots_pressed and '3' in dots_pressed and '4' in dots_pressed and '5' in dots_pressed:
 					# Dots 2, 3, 4 and 5 -> simulate "t"
-					appModules.HWUtils.emulateKeyPress("t")
+					humanware.emulateKeyPress("t")
 					log.info("Navigation level 't' simulated via braille dots 2, 3, 4 and 5")
 					return
 
@@ -368,7 +374,7 @@ class AppModule(appModuleHandler.AppModule):
 	@script(
 		# Translators: Input help mode message for a braille command.
 		description=_("Erases the last entered braille cell or character"),
-		category=_("Braille"),
+		category=SCRCAT_BRAILLE,
 		gesture="bk:dot7",
 	)
 	def script_braille_eraseLastCell(self, gesture):
@@ -377,7 +383,7 @@ class AppModule(appModuleHandler.AppModule):
 	@script(
 		# Translators: Input help mode message for a braille command.
 		description=_("Translates any braille input and presses the enter key"),
-		category=_("Braille"),
+		category=SCRCAT_BRAILLE,
 		gesture="bk:dot8",
 	)
 	def script_braille_enter(self, gesture):
@@ -386,7 +392,7 @@ class AppModule(appModuleHandler.AppModule):
 	@script(
 		# Translators: Input help mode message for a braille command.
 		description=_("Translates any braille input"),
-		category=_("Braille"),
+		category=SCRCAT_BRAILLE,
 		gesture="bk:dot7+dot8",
 	)
 	def script_braille_translate(self, gesture):
@@ -395,34 +401,34 @@ class AppModule(appModuleHandler.AppModule):
 	@script(
 		# Translators: Input Help message for the "Previous Heading" command.
 		description=_("Previous heading"),
-		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot5+dot7"),	# Backspace+h -> Shift+h
+		gesture=("br(hidBrailleStandard):space+dot1+dot2+dot5+dot7"),	# Backspace+h
 	)
 	def script_braille_previousHeading(self, gesture):
-		appModules.HWUtils.emulateKeyPress("shift+h")
+		humanware.emulateKeyPress("shift+h")
 
 	@script(
 		# Translators: Input Help message for the "Previous Heading 1" command.
 		description=_("Previous heading 1"),
-		gesture=("br(hidBrailleStandard):space+dot2+dot7"),	# Backspace+1 -> Shift+1
+		gesture=("br(hidBrailleStandard):space+dot2+dot7"),	# Backspace+1
 	)
 	def script_braille_previousHeading1(self, gesture):
-		self._navigateToPreviousHeading(1, gesture)
+		self._navigateToPreviousHeading(1, gesture)	# Shift+1
 
 	@script(
 		# Translators: Input Help message for the "Previous Heading 2" command.
 		description=_("Previous heading 2"),
-		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot7"),	# Backspace+2 -> Shift+2
+		gesture=("br(hidBrailleStandard):space+dot2+dot3+dot7"),	# Backspace+2
 	)
 	def script_braille_previousHeading2(self, gesture):
-		self._navigateToPreviousHeading(2, gesture)
+		self._navigateToPreviousHeading(2, gesture) # Shift+2
 
 	@script(
 		# Translators: Input Help message for the "Previous Heading 3" command.
 		description=_("Previous heading 3"),
-		gesture=("br(hidBrailleStandard):space+dot2+dot5+dot7"),	# Backspace+3 -> Shift+3
+		gesture=("br(hidBrailleStandard):space+dot2+dot5+dot7"),	# Backspace+3
 	)
 	def script_braille_previousHeading3(self, gesture):
-		self._navigateToPreviousHeading(3, gesture)
+		self._navigateToPreviousHeading(3, gesture) # Shift+3
 
 	# === HELPER METHODS ===
 	def _navigateToPreviousHeading(self, level, gesture):
@@ -436,7 +442,7 @@ class AppModule(appModuleHandler.AppModule):
 		obj = api.getFocusObject()
 		if obj.UIAAutomationId == "BookTextContent":
 			log.info(f"Navigating to previous heading level {level} via braille gesture")
-			appModules.HWUtils.emulateKeyPress(f"control+{level}")
+			humanware.emulateKeyPress(f"control+{level}")
 
 	def _executeCommand(self, commandName):
 		"""
@@ -445,7 +451,7 @@ class AppModule(appModuleHandler.AppModule):
 		Args:
 			commandName (str): Name of the command to execute
 		"""
-		appModules.HWUtils.emulateKeyPressFromCommandName(self, commandName)
+		humanware.emulateKeyPressFromCommandName(self, commandName)
 
 	def moveByCharacter(self, gesture):
 		obj = api.getFocusObject()
@@ -460,7 +466,7 @@ class AppModule(appModuleHandler.AppModule):
 			gesture.send()
 
 	def moveByWordFromCommandName(self, commandName):
-		kbIdentifier = appModules.HWUtils.getShortcutFromCommandName(self, commandName)
+		kbIdentifier = humanware.getShortcutFromCommandName(self, commandName)
 		gesture = KeyboardInputGesture.fromName(kbIdentifier)
 		self.moveByWord(gesture)
 
