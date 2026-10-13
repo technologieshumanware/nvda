@@ -1,0 +1,116 @@
+name: Fetch Crowdin Translations
+
+# Note: This workflow only updates tracked languages from Crowdin.
+# If you want to add new languages, use the "Add new languages to track from Crowdin" workflow.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every Monday at 00:00 UTC
+    # This is because the translation freeze should end at 11:59 UTC on a Sunday.
+    # And we want to perform beta/rc releases soon after 00:00 UTC on a Monday.
+    # Cron jobs are run from the master branch.
+    - cron: '0 0 * * 1'
+
+jobs:
+  download-from-crowdin:
+    runs-on: windows-2025
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      branchName: updateCrowdinTranslations${{ github.run_id }}
+
+    steps:
+    - name: Early exit
+      run: |
+        if ("${{ vars.CROWDIN_PROJECT_ID }}".length -eq 0) {
+          Write-Output "CROWDIN_PROJECT_ID is not set. Exiting workflow."
+          gh run cancel ${{ github.run_id }}
+          gh run watch ${{ github.run_id }}
+        }
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: beta
+        fetch-depth: 1
+        submodules: true
+
+    - name: Set up python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13.12'
+        architecture: 'x64'
+
+    - name: setup uv
+      uses: astral-sh/setup-uv@v6
+
+    - name: Download translations from Crowdin
+      run: uv run source/l10nUtil.py exportTranslations -o .
+      env:
+        crowdinProjectID: ${{ vars.CROWDIN_PROJECT_ID }}
+        crowdinAuthToken: ${{ secrets.CROWDIN_AUTH_TOKEN }}
+
+    - name: Commit tracked files only
+      id: commit
+      run: ci/scripts/checkAndCommitTranslations.ps1 -branchName ${{ env.branchName }}
+
+    - name: Create pull request
+      if: steps.commit.outputs.has_changes == 'true'
+      run: |
+        git push --set-upstream origin ${{ env.branchName }}
+        # Create a pull request for the changes
+        gh pr create --base beta --head ${{ env.branchName }} `
+        --title "Update tracked translations from Crowdin" `
+        --body "This pull request updates translations to languages being tracked from Crowdin."
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Merge pull request
+      if: steps.commit.outputs.has_changes == 'true'
+      run: |
+        # Sets PR to auto-merge when checks have passed
+        gh pr merge ${{ env.branchName }} `
+        --squash --delete-branch --auto `
+        --body "Merged translations from Crowdin"
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Notify translators of errors
+      if: steps.commit.outputs.has_failures == 'true'
+      uses: dawidd6/action-send-mail@v4
+      with:
+        server_address: ${{ secrets.EMAIL_SERVER_ADDRESS }}
+        server_port: ${{ secrets.EMAIL_SERVER_PORT || 465 }}
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "[${{ steps.commit.outputs.invalid_pofile_locales }}]: Errors in interface translations"
+        to: nvda-l10n@nvaccess.org
+        from: '"NVDA localisations" <nvda-l10n@nvaccess.org>'
+        convert_markdown: true
+        body: |
+          Errors have been found in the user interface translations for the following locales: ${{ steps.commit.outputs.invalid_pofile_locales }}.
+          Detailed reports are included below.
+          Updated translations for these locales will not be included in NVDA until these errors have been corrected.
+
+          For more information, review the guide on translating NVDA's interface: <https://github.com/nvaccess/nvda/blob/master/projectDocs/translating/crowdin.md#translating-nvdas-interface>.
+
+          ----------
+          ${{ steps.commit.outputs.invalid_pofile_reports }}
+
+        html_body: |
+          Errors have been found in the user interface translations for the following locales: ${{ steps.commit.outputs.invalid_pofile_locales }}.
+          Detailed reports are included below.
+          Updated translations for these locales will not be included in NVDA until these errors have been corrected.
+
+          For more information, [review the guide on translating NVDA's interface](https://github.com/nvaccess/nvda/blob/master/projectDocs/translating/crowdin.md#translating-nvdas-interface).
+
+          ```
+          ----------
+          ${{ steps.commit.outputs.invalid_pofile_reports }}
+          ```
